@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>百炼文档分析工具</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/spark-md5/spark-md5.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <!-- 左侧面板 -->
+    <div class="panel panel-left">
+      <div class="panel-header">
+        <h1>📄 百炼文档分析</h1>
+        <p class="subtitle">上传文档 → 智能解析 → Markdown 输出</p>
+      </div>
+
+      <div class="section">
+        <label class="label">API 模式</label>
+        <div class="mode-tabs">
+          <button class="mode-tab active" data-mode="upload">📤 上传文件</button>
+          <button class="mode-tab" data-mode="url">🔗 粘贴 URL</button>
+        </div>
+      </div>
+
+      <!-- 上传模式 -->
+      <div class="section" id="upload-section">
+        <label class="label">选择文档</label>
+        <div class="upload-area" id="upload-area">
+          <div class="upload-icon">📁</div>
+          <p class="upload-text">拖拽文件到此处，或点击选择</p>
+          <p class="upload-hint">支持 .docx .pdf .txt .md .json，最大 30MB</p>
+          <input type="file" id="file-input" accept=".docx,.pdf,.txt,.md,.json,.doc" hidden>
+        </div>
+        <div class="file-info hidden" id="file-info">
+          <span class="file-name" id="file-name"></span>
+          <span class="file-size" id="file-size"></span>
+          <button class="btn-clear" id="btn-clear-file">✕</button>
+        </div>
+        <div class="upload-progress hidden" id="upload-progress">
+          <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+          <p class="progress-text" id="progress-text"></p>
+        </div>
+      </div>
+
+      <!-- URL 模式 -->
+      <div class="section hidden" id="url-section">
+        <label class="label">文档 URL</label>
+        <input type="text" class="input" id="url-input" placeholder="粘贴 OSS/文档链接...">
+        <p class="hint">百炼控制台上传文件后，在「数据中心-文档管理」中复制 OSS 链接</p>
+      </div>
+
+
+      <button class="btn-submit" id="btn-submit" disabled>
+        <span class="btn-text">🚀 开始分析</span>
+        <span class="btn-loading hidden">⏳ 分析中...</span>
+      </button>
+    </div>
+
+    <!-- 右侧面板 -->
+    <div class="panel panel-right">
+      <div class="panel-header result-header">
+        <h2>📝 分析结果</h2>
+        <div class="result-actions hidden" id="result-actions">
+          <button class="btn-action" id="btn-copy">📋 复制</button>
+          <button class="btn-action" id="btn-download">💾 下载 MD</button>
+        </div>
+      </div>
+      <div class="result-body">
+        <div class="empty-state" id="empty-state">
+          <div class="empty-icon">📊</div>
+          <p>上传文档后，分析结果将在这里以 Markdown 格式展示</p>
+        </div>
+        <div class="markdown-body hidden" id="markdown-body"></div>
+        <div class="error-state hidden" id="error-state">
+          <div class="error-icon">⚠️</div>
+          <p class="error-message" id="error-message"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
