@@ -8,21 +8,31 @@ const API_BASE = 'https://dashscope.aliyuncs.com';
 const APPLY_UPLOAD_URL = `${API_BASE}/api/v2/apps/zhiwen-file/apply_upload_lease`;
 const SUBMIT_PARSE_URL = `${API_BASE}/api/v2/apps/zhiwen-file/submit_parse_file`;
 
-// 内置配置
-const API_KEY = 'sk-ws-H.ERYREIY.WhXh.MEQCIB8iblLOVXE00QpZ5cs6EB5bsdlwOZz1VhUK2egWDV14AiA3NvQN12K3w0WNLdhOhjQ37vdmsegoSwMCZmVqp6BsZg';
-const APP_ID = 'd6ab090ca8164e0795efa282a00bc808';
-const PROMPT = '你是一位课程内容分析专家。请阅读用户提供的课程文稿，提取关键信息并按以下结构输出：\n1. 课程背景与概述\n2. 课程亮点\n3. 你将收获\n4. 配套服务';
+const DEFAULT_PROMPT = '你是一位课程内容分析专家。请阅读用户提供的课程文稿，提取关键信息并按以下结构输出：\n1. 课程背景与概述\n2. 课程亮点\n3. 你将收获\n4. 配套服务';
 
 // 支持的文件类型
 const ALLOWED_TYPES = [
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
-  'application/msword',              // .doc
-  'application/pdf',                 // .pdf
-  'text/plain',                      // .txt
-  'text/markdown',                   // .md
-  'application/json',                // .json
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/msword',
+  'application/pdf',
+  'text/plain',
+  'text/markdown',
+  'application/json',
 ];
 const MAX_FILE_SIZE = 30 * 1024 * 1024; // 30MB
+
+// ===== 配置管理（localStorage） =====
+function getConfig() {
+  return {
+    apiKey: localStorage.getItem('doc_analyzer_api_key') || '',
+    appId: localStorage.getItem('doc_analyzer_app_id') || '',
+    prompt: localStorage.getItem('doc_analyzer_prompt') || DEFAULT_PROMPT,
+  };
+}
+
+function saveConfig(key, value) {
+  localStorage.setItem(`doc_analyzer_${key}`, value);
+}
 
 // ===== DOM 元素 =====
 const $ = (sel) => document.querySelector(sel);
@@ -48,7 +58,15 @@ const dom = {
   // URL
   urlInput: $('#url-input'),
 
-  // 配置
+  // 设置
+  btnSettingsToggle: $('#btn-settings-toggle'),
+  settingsPanel: $('#settings-panel'),
+  apiKeyInput: $('#api-key-input'),
+  appIdInput: $('#app-id-input'),
+  promptInput: $('#prompt-input'),
+  btnSaveSettings: $('#btn-save-settings'),
+
+  // 提交
   btnSubmit: $('#btn-submit'),
   btnText: $('#btn-submit .btn-text'),
   btnLoading: $('#btn-submit .btn-loading'),
@@ -70,6 +88,12 @@ let currentMarkdown = '';
 
 // ===== 初始化 =====
 function init() {
+  // 加载已保存的配置
+  const config = getConfig();
+  if (config.apiKey) dom.apiKeyInput.value = config.apiKey;
+  if (config.appId) dom.appIdInput.value = config.appId;
+  if (config.prompt) dom.promptInput.value = config.prompt;
+
   // 模式切换
   dom.modeTabs.forEach(tab => {
     tab.addEventListener('click', () => switchMode(tab.dataset.mode));
@@ -99,6 +123,10 @@ function init() {
   // URL 输入变化
   dom.urlInput.addEventListener('input', updateSubmitButton);
 
+  // 设置面板
+  dom.btnSettingsToggle.addEventListener('click', toggleSettings);
+  dom.btnSaveSettings.addEventListener('click', saveSettings);
+
   // 提交
   dom.btnSubmit.addEventListener('click', handleSubmit);
 
@@ -110,6 +138,30 @@ function init() {
 
   // 初始状态
   updateSubmitButton();
+}
+
+// ===== 设置面板 =====
+function toggleSettings() {
+  const isOpen = dom.settingsPanel.classList.toggle('hidden');
+  dom.btnSettingsToggle.textContent = isOpen ? '⚙ 设置' : '⚙ 收起设置';
+}
+
+function saveSettings() {
+  const apiKey = dom.apiKeyInput.value.trim();
+  const appId = dom.appIdInput.value.trim();
+  const prompt = dom.promptInput.value.trim();
+
+  if (!apiKey || !appId) {
+    alert('请填写 API Key 和 App ID');
+    return;
+  }
+
+  saveConfig('api_key', apiKey);
+  saveConfig('app_id', appId);
+  saveConfig('prompt', prompt || DEFAULT_PROMPT);
+
+  dom.btnSaveSettings.textContent = '✓ 已保存';
+  setTimeout(() => dom.btnSaveSettings.textContent = '保存配置', 2000);
 }
 
 // ===== 模式切换 =====
@@ -125,7 +177,6 @@ function switchMode(mode) {
 function handleFileSelect(file) {
   if (!file) return;
 
-  // 验证类型
   const ext = file.name.split('.').pop().toLowerCase();
   const isAllowedExt = ['docx', 'doc', 'pdf', 'txt', 'md', 'json'].includes(ext);
   if (!isAllowedExt && !ALLOWED_TYPES.includes(file.type)) {
@@ -133,7 +184,6 @@ function handleFileSelect(file) {
     return;
   }
 
-  // 验证大小
   if (file.size > MAX_FILE_SIZE) {
     showError(`文件过大（${formatSize(file.size)}），最大支持 30MB`);
     return;
@@ -168,6 +218,16 @@ function updateSubmitButton() {
   dom.btnSubmit.disabled = !hasFile;
 }
 
+// ===== 检查配置 =====
+function ensureConfig() {
+  const config = getConfig();
+  if (!config.apiKey || !config.appId) {
+    toggleSettings();
+    throw new Error('请先配置 API Key 和 App ID（点击上方 ⚙ 设置按钮）');
+  }
+  return config;
+}
+
 // ===== 主流程 =====
 async function handleSubmit() {
   if (dom.btnSubmit.disabled) return;
@@ -177,21 +237,18 @@ async function handleSubmit() {
   hideResult();
 
   try {
+    const config = ensureConfig();
+
     let fileUrl;
 
     if (currentMode === 'upload') {
-      // 三步上传流程
-      fileUrl = await uploadFileFullFlow(API_KEY);
+      fileUrl = await uploadFileFullFlow(config);
     } else {
-      // URL 直传模式
       fileUrl = dom.urlInput.value.trim();
       if (!fileUrl) throw new Error('请输入文档 URL');
     }
 
-    // 调用 Completion API
-    const markdown = await callCompletionAPI(fileUrl);
-
-    // 渲染结果
+    const markdown = await callCompletionAPI(config, fileUrl);
     currentMarkdown = markdown;
     renderMarkdown(markdown);
 
@@ -204,29 +261,24 @@ async function handleSubmit() {
 }
 
 // ===== 三步文件上传流程 =====
-async function uploadFileFullFlow(apiKey) {
+async function uploadFileFullFlow(config) {
   const file = currentFile;
   if (!file) throw new Error('请先选择文件');
 
-  // Step 1: 计算 MD5
   updateProgress(10, '正在计算文件指纹...');
   const md5 = await computeMD5(file);
 
-  // Step 2: 申请上传租约
   updateProgress(25, '正在申请上传租约...');
-  const leaseInfo = await applyUploadLease(apiKey, file.name, file.size, md5);
+  const leaseInfo = await applyUploadLease(config, file.name, file.size, md5);
 
-  // Step 3: 上传到 OSS
   updateProgress(50, '正在上传文件到 OSS...');
   await uploadToOSS(leaseInfo, file);
 
-  // Step 4: 提交解析
   updateProgress(75, '正在提交文件解析...');
-  const parseResult = await submitParseFile(apiKey, leaseInfo.lease_id);
+  const parseResult = await submitParseFile(config, leaseInfo.lease_id);
 
-  // 轮询解析状态
   updateProgress(90, '正在等待解析完成...');
-  const fileUrl = await waitForParse(apiKey, parseResult);
+  const fileUrl = await waitForParse(parseResult);
 
   updateProgress(100, '文件准备完成！');
   return fileUrl;
@@ -235,7 +287,7 @@ async function uploadFileFullFlow(apiKey) {
 // ===== MD5 计算 =====
 function computeMD5(file) {
   return new Promise((resolve, reject) => {
-    const chunkSize = 2 * 1024 * 1024; // 2MB chunks
+    const chunkSize = 2 * 1024 * 1024;
     const chunks = Math.ceil(file.size / chunkSize);
     const spark = new SparkMD5.ArrayBuffer();
     const reader = new FileReader();
@@ -265,11 +317,11 @@ function computeMD5(file) {
 }
 
 // ===== 申请上传租约 =====
-async function applyUploadLease(apiKey, fileName, sizeBytes, md5) {
+async function applyUploadLease(config, fileName, sizeBytes, md5) {
   const res = await fetch(APPLY_UPLOAD_URL, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${API_KEY}`,
+      'Authorization': `Bearer ${config.apiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ fileName, sizeBytes, md5 }),
@@ -314,11 +366,11 @@ async function uploadToOSS(leaseInfo, file) {
 }
 
 // ===== 提交解析 =====
-async function submitParseFile(apiKey, leaseId) {
+async function submitParseFile(config, leaseId) {
   const res = await fetch(SUBMIT_PARSE_URL, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${API_KEY}`,
+      'Authorization': `Bearer ${config.apiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ leaseId }),
@@ -334,30 +386,26 @@ async function submitParseFile(apiKey, leaseId) {
 }
 
 // ===== 等待解析完成 =====
-async function waitForParse(apiKey, parseData) {
-  // submit_parse_file 返回的 data.url 通常立即可用
-  // 如果 url 存在，直接返回
+async function waitForParse(parseData) {
   if (parseData.url) {
     return parseData.url;
   }
 
-  // 否则轮询（最多等待 30 秒）
   const fileId = parseData.fileId;
   if (!fileId) {
     throw new Error('未获取到文件 URL，请确认文件上传成功');
   }
 
-  // 返回 fileId，后续 completion 可能接受 fileId
   return fileId;
 }
 
 // ===== Completion API =====
-async function callCompletionAPI(fileUrl) {
-  const completionUrl = `${API_BASE}/api/v1/apps/${APP_ID}/completion`;
+async function callCompletionAPI(config, fileUrl) {
+  const completionUrl = `${API_BASE}/api/v1/apps/${config.appId}/completion`;
 
   const body = {
     input: {
-      prompt: PROMPT,
+      prompt: config.prompt,
       biz_params: {
         courseware: {
           url: fileUrl,
@@ -370,7 +418,7 @@ async function callCompletionAPI(fileUrl) {
   const res = await fetch(completionUrl, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${API_KEY}`,
+      'Authorization': `Bearer ${config.apiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
@@ -390,12 +438,10 @@ async function callCompletionAPI(fileUrl) {
 
   const data = await res.json();
 
-  // 处理流式响应
   if (data.output && data.output.text) {
     return data.output.text;
   }
 
-  // 处理可能的其他响应格式
   if (data.text) return data.text;
 
   throw new Error('API 返回格式异常：未找到 text 字段');
@@ -407,7 +453,6 @@ function renderMarkdown(md) {
   dom.errorState.classList.add('hidden');
   dom.markdownBody.classList.remove('hidden');
 
-  // 配置 marked
   marked.setOptions({
     breaks: true,
     gfm: true,
@@ -416,7 +461,6 @@ function renderMarkdown(md) {
   dom.markdownBody.innerHTML = marked.parse(md);
   dom.resultActions.classList.remove('hidden');
 
-  // 滚动到顶部
   dom.markdownBody.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -426,7 +470,7 @@ function copyResult() {
   navigator.clipboard.writeText(currentMarkdown).then(() => {
     const btn = dom.btnCopy;
     const original = btn.textContent;
-    btn.textContent = '✅ 已复制';
+    btn.textContent = '✓ 已复制';
     setTimeout(() => btn.textContent = original, 2000);
   }).catch(() => {
     alert('复制失败，请手动复制');
@@ -485,6 +529,10 @@ function formatError(err) {
 
   if (msg.includes('401') || msg.includes('Unauthorized')) {
     return 'API Key 无效或已过期，请检查后重试。';
+  }
+
+  if (msg.includes('403') || msg.includes('Access denied')) {
+    return 'API Key 权限不足或已失效，请前往阿里云百炼控制台重新生成 Key。';
   }
 
   if (msg.includes('404')) {

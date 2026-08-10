@@ -327,6 +327,62 @@ body {
   display: none;
 }
 
+/* ===== 设置面板 ===== */
+.btn-settings-toggle {
+  width: 100%;
+  padding: 8px 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 14px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-settings-toggle:hover {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+.settings-panel {
+  margin-top: 12px;
+  padding: 16px;
+  background: var(--bg);
+  border-radius: var(--radius);
+}
+
+.settings-panel .label {
+  margin-top: 12px;
+  margin-bottom: 4px;
+}
+
+.settings-panel .label:first-of-type {
+  margin-top: 0;
+}
+
+.settings-panel .hint {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.btn-save-settings {
+  width: 100%;
+  margin-top: 12px;
+  padding: 8px 16px;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-save-settings:hover {
+  background: var(--primary-hover);
+}
+
 /* ===== 空状态 ===== */
 .empty-state {
   display: flex;

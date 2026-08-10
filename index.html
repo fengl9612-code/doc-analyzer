@@ -52,6 +52,20 @@
         <p class="hint">百炼控制台上传文件后，在「数据中心-文档管理」中复制 OSS 链接</p>
       </div>
 
+      <!-- 设置 -->
+      <div class="section">
+        <button class="btn-settings-toggle" id="btn-settings-toggle">⚙ 设置</button>
+        <div class="settings-panel hidden" id="settings-panel">
+          <label class="label">API Key <span class="hint">（仅保存在本地浏览器，不上传）</span></label>
+          <input type="password" class="input" id="api-key-input" placeholder="sk-ws-...">
+          <label class="label">App ID</label>
+          <input type="text" class="input" id="app-id-input" placeholder="d6ab090ca...">
+          <label class="label">分析指令 Prompt</label>
+          <textarea class="input textarea" id="prompt-input" rows="3" placeholder="你是一位课程内容分析专家..."></textarea>
+          <button class="btn-save-settings" id="btn-save-settings">保存配置</button>
+          <p class="hint" style="margin-top: 4px;">API Key 和 App ID 存储在浏览器本地，不会提交到服务器</p>
+        </div>
+      </div>
 
       <button class="btn-submit" id="btn-submit" disabled>
         <span class="btn-text">🚀 开始分析</span>
